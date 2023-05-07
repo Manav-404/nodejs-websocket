@@ -4,11 +4,11 @@ const server = new WebSocketServer({port: PORT})
 
 server.on('headers', ({headers})=>console.log(headers))
 
-server.on('data', (message) => {
+server.on('data', (message, reply) => {
     if (!message) return;
   
     const data = JSON.parse(message);
-    console.log('Message received:', data);
+    return reply({pong: data})
   });
 server.listen(()=>{
     console.log(`WebSocket server is listening on ${PORT}`)

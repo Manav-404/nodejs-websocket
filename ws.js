@@ -1,6 +1,7 @@
 const http = require('node:http');
 const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
+const { buffer } = require('stream/consumers');
 
 
 class WebSocketServer extends EventEmitter{
@@ -46,7 +47,7 @@ class WebSocketServer extends EventEmitter{
 
             socket.write(responseHeaders.concat('\r\n').join('\r\n'));
             socket.on('data', (buffer) =>
-            this.emit('data', this.parseFrame(buffer))
+            this.emit('data', this.parseFrame(buffer),(data)=>socket.write(this.createFrame(data)))
           );
             this.on("close", ()=>{
                 console.log('socket....', socket);
@@ -116,6 +117,39 @@ class WebSocketServer extends EventEmitter{
 
         return result
     }
+
+    createFrame(data){
+        const payload = JSON.stringify(data)
+
+        const payloadByteLength = Buffer.byteLength(payload);
+
+        let payloadBytesOffset = 2
+        let payloadLength = payloadByteLength
+
+        if(payloadByteLength > 65535){
+            payloadBytesOffset+=8
+            payloadLength = 127
+        }else if(payloadByteLength> 125){
+            payloadBytesOffset+=2
+            payloadLength = 126
+        }
+
+        const buffer = Buffer.alloc(payloadBytesOffset + payloadByteLength)
+
+        buffer.writeUInt8(0b10000001, 0);
+        buffer[1] = payloadLength
+
+        if(payloadLength === 126){
+            buffer.writeUInt16BE(payloadByteLength, 2)
+        }else if(payloadLength === 127){
+            buffer.writeBigUInt64BE(payloadByteLength, 2);
+        }
+
+        buffer.write(payload, payloadBytesOffset)
+
+        return buffer
+    }
+
 }
 
 module.exports = WebSocketServer
